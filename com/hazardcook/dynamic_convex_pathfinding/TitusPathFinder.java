@@ -223,11 +223,11 @@ public class TitusPathFinder implements PathFinder{
 					}
 					
 					/*
-					 * End point regression or progression step
+					 * End point sliding step
 					 * 
 					 * Move the clockwise and counter-clockwise points toward the current point by movementGrain
 					 * until the raycast from the new clockwise and counter-clockwise points to the end point
-					 * hits the convex or the points end up inside any convex, then take it a step back. 
+					 * hits the convex, then take it a step back
 					 * This keeps a tight path around the convex
 					 */
 					
@@ -241,11 +241,11 @@ public class TitusPathFinder implements PathFinder{
 					while(!done){
 						/*
 						 * Incrementally move the clockwise point toward the current point. Then, if a raycast
-						 * from the clockwise point to the end point crosses the convex, or the point has
-						 * been moved inside any other convex, move back an iteration and the movement is finished
+						 * from the clockwise point to the end point crosses the convex, move back an iteration 
+						 * and the movement is finished
 						 */
 						clockwise.add(moveClockwise);
-						if(tree.world.raycast(clockwise, next, firstBody) || tree.world.detect(clockwise)){
+						if(tree.world.raycast(clockwise, next, firstBody)){
 							done = true;
 							clockwise.sub(moveClockwise);
 						}
@@ -261,11 +261,45 @@ public class TitusPathFinder implements PathFinder{
 						 * Same steps as above but for the counter-clockwise point
 						 */
 						counter.add(moveCounter);
-						if(tree.world.raycast(counter, next, firstBody) || tree.world.detect(counter)){
+						if(tree.world.raycast(counter, next, firstBody)){
 							done = true;
 							counter.sub(moveCounter);
 						}
 					}
+					/*
+					 * Now the points need to be moved back away from the convex while they intersect any other
+					 * convex in the world.
+					 */
+					/*
+					 * Move clockwise until it is out of any convexes
+					 */
+					done = false;
+					while(!done){
+						/*
+						 * If clockwise is inside any convexes, move it away. Otherwise the loop is finished
+						 */
+						if(tree.world.detect(clockwise)){
+							clockwise.sub(moveClockwise);
+						} else {
+							done = true;
+						}
+					}
+					/*
+					 * Move counter until it is out of any convexes
+					 */
+					done = false;
+					while(!done){
+						/*
+						 * If counter is inside any convexes, move it away. Otherwise the loop is finished
+						 */
+						if(tree.world.detect(counter)){
+							counter.sub(moveCounter);
+						} else {
+							done = true;
+						}
+					}
+					
+					
 					
 					/*
 					 * Branch step
