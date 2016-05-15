@@ -43,18 +43,18 @@ and they are put into a queue. This queue contains all new paths constructed thi
 paths on one level of this tree before moving to the next.
 
 If a path finds that there is no convex between the current location it is checking and the next location,
-this actually means the algorithm is done! Since we ensure that all parts of the path connected before the
-current location are not blocked by any convexes, the next location will only be free of a blocking convex
-if the last iteration finally got the path around a convex that didn't lead to another collision.
+and the next location is the last location in the path, the algorithm is finished. Otherwise it can move
+on to the next segment and check for an intersecting convex.
 
 This algorithm is by no means perfect. It can explode if too high of a max iterations for visiting
-bodies is chosen. The path generally finds close to the shortest path possible, and does so quickly if
-tuned right. The default values I included worked well for me. It should also be noted that this algorithm
-works better when there are fewer convexes. The more space there is to work with the more likely it will be
-that the algorithm finishes quickly. If there are only tiny gaps between convexes and the actual shortest
-is an enormous winding beast then the algorithm will most likely fail after visiting the same
-bodies too many times. Trying to increase the number of times the algorithm can visit the same body will
-do the opposite: branch into so many paths no progress can be made by the computer.
+bodies is chosen. It will also fail if the iterations are too small. The path generally finds close
+to the shortest path possible, and does so quickly if tuned right. The default values I included worked 
+well for me. It should also be noted that this algorithm works better when there are fewer convexes. The 
+more space there is to work with the more likely it will be that the algorithm finishes quickly. If there
+are only tiny gaps between convexes and the actual shortest is an enormous winding beast then the algorithm 
+will most likely fail after visiting the same bodies too many times. Trying to increase the number of times 
+the algorithm can visit the same body will do the opposite: branch into so many paths no progress can be made 
+by the computer.
 
 That said, I found this algorithm was able to find a path every frame during a 60 FPS simulation in a world
 filled with hundreds of random rectangles and circles moving around and bumping into each other, and the path
