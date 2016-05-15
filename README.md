@@ -70,3 +70,6 @@ the path would be able to get through it.
 Rework so that finding a complicated path through a maze is easier. Works best when convexes are randomly
 placed and moving around.
 
+Add a step to the algorithm that "shimmies" locations back and forth between their neighbors while still avoiding
+convexes, to reduce the amount the path goes out of its way and reduce its length. This would sacrifice performance
+for the quality of the path.
