@@ -30,8 +30,8 @@ public class TitusPathFinder implements PathFinder{
 			DEFAULT_MAX_VISITS = 2
 		;
 		public static final double 
-			DEFAULT_ANGULAR_GRAIN = Math.PI/18,
-			DEFAULT_MOVEMENT_GRAIN = 1.0/15.0
+			DEFAULT_ANGULAR_GRAIN = Math.PI/36,
+			DEFAULT_MOVEMENT_GRAIN = 1.0/45.0
 		;
 		
 		private ArrayList<PathBranch> branchQueue = new ArrayList<PathBranch>();
@@ -85,7 +85,7 @@ public class TitusPathFinder implements PathFinder{
 		/**
 		 * Finds a shortest path from the tree's start point to the end point. Uses the WorldWrapper to determine where the path
 		 * is intersecting any convex bodies and adjusts the path accordingly.
-		 * @return returns a {@link Path} which contains a list of {@link Vec2} locations in increasing order from start to end
+		 * @return returns a {@link Path} which contains a list of {@link Vec2} locations in increasing order from start to end or null if a path wasn't found
 		 */
 		public Path shortestPath(){
 			ArrayList<Vec2> startingPath = new ArrayList<Vec2>();
@@ -93,8 +93,12 @@ public class TitusPathFinder implements PathFinder{
 			startingPath.add(end);
 			PathBranch current = new PathBranch(this, startingPath, 0, new HashMap<BodyWrapper, Integer>());
 			while(!current.branchShortestPath()){
-				current = branchQueue.get(0);
-				branchQueue.remove(0);
+				if(branchQueue.isEmpty()){
+					return null;
+				} else {
+					current = branchQueue.get(0);
+					branchQueue.remove(0);
+				}
 			}
 			return new Path(current.locations);
 		}
@@ -136,7 +140,7 @@ public class TitusPathFinder implements PathFinder{
 				if(visits == null){
 					visitedBodies.put(body, (visits = 0));
 				}
-				visitedBodies.put(body, visits + 1);
+				visitedBodies.put(body, (visits += 1));
 				if(visits > maxVisits){
 					return false;
 				}
@@ -152,22 +156,42 @@ public class TitusPathFinder implements PathFinder{
 				 * Get a list of bodies in the world that cross this section of the path
 				 */
 				List<BodyWrapper> bodies = tree.world.raycast(locations.get(currentLocation), locations.get(currentLocation + 1));
+				
 				/*
 				 * Only concerned with the first body crossed in this branch
 				 */
-				BodyWrapper firstBody = bodies.get(0);
+				BodyWrapper firstBody = bodies.isEmpty() ? null : bodies.get(0);
 				/*
-				 * If there was no body, there is no more branching to be done between the second to last and
-				 * last locations in the path. This path is good
+				 * If there was no body and the next location is the end, pathfinding has finished. If it's not the end,
+				 * iterate the current location and requeue this path.
 				 */
 				if(firstBody == null){
-					return true;
+					/*
+					 * If the next location is the end point the path is finished
+					 */
+					if(currentLocation + 1 == locations.size() - 1){
+						return true;
+					/*
+					 * Otherwise increment the current location and requeue this path
+					 */
+					} else {
+						currentLocation += 1;
+						tree.queueForBranching(this);
+						return false;
+					}
 				}
 				/*
 				 * If there was a body but it has been visited the max number of
 				 * times, end this branch. This prevents bad paths from continuing
 				 */
 				else if(!visit(firstBody)){
+					return false;
+				}
+				/*
+				 * If either the start or end point is inside a body, no path can be found by continuing this path
+				 * at this point
+				 */
+				else if(world.detect(locations.get(currentLocation)) || world.detect(locations.get(currentLocation + 1))){
 					return false;
 				}
 				/*
@@ -197,29 +221,21 @@ public class TitusPathFinder implements PathFinder{
 					 * points no longer cross the convex. angularGrain is used here
 					 * for the amount of rotation between iterations
 					 */
-					boolean done = false;
-					while(!done){
+					while(tree.world.raycast(current, clockwise, firstBody)){
 						/*
 						 * Rotate the clockwise point around the current point by angularGrain.
 						 * If the raycast between the current point and clockwise point no longer
 						 * hits the convex from earlier, rotating is finished
 						 */
 						clockwise.rotate(-tree.angularGrain, current);
-						if(tree.world.raycast(current, clockwise, firstBody)){
-							done = true;
-						}
 					}
-					done = false;
-					while(!done){
+					while(tree.world.raycast(current, counter, firstBody)){
 						/*
 						 * Rotate the counter-clockwise point around the current point by angularGrain.
 						 * If the raycast between the current point and counter-clockwise point no longer
 						 * hits the convex from earlier, rotating is finished
 						 */
 						counter.rotate(tree.angularGrain, current);
-						if(tree.world.raycast(current, counter, firstBody)){
-							done = true;
-						}
 					}
 					
 					/*
@@ -237,7 +253,7 @@ public class TitusPathFinder implements PathFinder{
 					 * the current point
 					 */
 					Vec2 moveClockwise = current.copy().sub(clockwise).mul(tree.movementGrain);
-					done = false;
+					boolean done = false;
 					while(!done){
 						/*
 						 * Incrementally move the clockwise point toward the current point. Then, if a raycast

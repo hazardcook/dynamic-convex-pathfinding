@@ -6,6 +6,6 @@ package com.hazardcook.dynamic_convex_pathfinding;
  * @version 1.0
  *
  */
-public class BodyWrapper {
+public interface BodyWrapper {
 
 }
