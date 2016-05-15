@@ -22,6 +22,7 @@ public class TitusPathFinder implements PathFinder{
 	 * Not a traditional tree but helps to think of the way the paths branch as one.
 	 * Able to find a {@link Path} given a start and end {@link Vec2} and an implementation of a {@link WorldWrapper}
 	 * @author nathan titus
+	 * @version 1.0
 	 *
 	 */
 	private class PathTree {
@@ -321,10 +322,6 @@ public class TitusPathFinder implements PathFinder{
 					return false;
 				}
 			}
-			
-			
 		}
 	}
-	
-
 }

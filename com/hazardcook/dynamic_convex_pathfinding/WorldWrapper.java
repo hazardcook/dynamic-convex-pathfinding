@@ -8,7 +8,6 @@ import java.util.List;
  *
  */
 public interface WorldWrapper {
-	
 	/**
 	 * Performs a raycast in a 2D rigid body world from a start point to an end point, returning the bodies hit by the raycast
 	 * @param start starting point of the raycast

@@ -2,7 +2,8 @@ package com.hazardcook.dynamic_convex_pathfinding;
 
 /**
  * Simple implementation of a 2 dimensional vector with necessary functions for algorithms in {@link PathFinder}
- * @author nathan
+ * @author nathan titus
+ * @version 1.0
  *
  */
 public class Vec2 {
