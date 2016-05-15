@@ -47,15 +47,26 @@ this actually means the algorithm is done! Since we ensure that all parts of the
 current location are not blocked by any convexes, the next location will only be free of a blocking convex
 if the last iteration finally got the path around a convex that didn't lead to another collision.
 
-This algorithm is by no means perfect. It can also explode if too high of a max iterations for visiting
+This algorithm is by no means perfect. It can explode if too high of a max iterations for visiting
 bodies is chosen. The path generally finds close to the shortest path possible, and does so quickly if
 tuned right. The default values I included worked well for me. It should also be noted that this algorithm
 works better when there are fewer convexes. The more space there is to work with the more likely it will be
 that the algorithm finishes quickly. If there are only tiny gaps between convexes and the actual shortest
-is actually this enormous winding beast then the algorithm will most likely fail after visiting the same
+is an enormous winding beast then the algorithm will most likely fail after visiting the same
 bodies too many times. Trying to increase the number of times the algorithm can visit the same body will
 do the opposite: branch into so many paths no progress can be made by the computer.
 
 That said, I found this algorithm was able to find a path every frame during a 60 FPS simulation in a world
 filled with hundreds of random rectangles and circles moving around and bumping into each other, and the path
 was of good quality. Enough for an enemy AI in a game by far.
+
+
+Future desired changes:
+
+Specify a clearance from convexes the path must meet. Rather than moving the path just out of the way of
+convexes, make sure it is a certain distance away. Do this so an object with a rigid body travelling along 
+the path would be able to get through it.
+
+Rework so that finding a complicated path through a maze is easier. Works best when convexes are randomly
+placed and moving around.
+
