@@ -2,6 +2,8 @@ package com.hazardcook.dynamic_convex_pathfinding.test;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -126,9 +128,9 @@ public class TestingPathFinding {
 		 * Pathfinding portion
 		 */
 		TitusPathFinder pFinder = new TitusPathFinder();
-		Path path = pFinder.shortestPath(start, end, world);
-		assert(path.locations.size() > 2);
-		
+		pFinder.initIterPath(start, end, world);
+		Path path = pFinder.iterShortestPath();
+		final PathCarrier pc = new PathCarrier(path);
 		/*
 		 * Render portion
 		 */
@@ -139,15 +141,17 @@ public class TestingPathFinding {
 			
 			@Override
 			public void paintComponent(Graphics g){
+				g.setColor(Color.WHITE);
+				g.fillRect(0, 0, 800, 800);
 				g.setColor(Color.BLACK);
 				for(int i = 0; i < world.rectangles.size(); i++){
 					Rectangle2D r = ((BodyWrapperTestClass) world.rectangles.get(i)).r;
 					g.drawRect((int)r.getX()*8, (int)r.getY()*8+400, (int)r.getWidth()*8, (int)r.getHeight()*8);
 				}
 				g.setColor(Color.RED);
-				for(int i = 0; i < path.locations.size() - 1; i++){
-					Vec2 s = path.locations.get(i);
-					Vec2 e = path.locations.get(i + 1);
+				for(int i = 0; i < pc.path.locations.size() - 1; i++){
+					Vec2 s = pc.path.locations.get(i);
+					Vec2 e = pc.path.locations.get(i + 1);
 					g.drawLine((int)s.x*8, (int)(s.y*8)+400, (int)e.x*8, (int)(e.y*8)+400);
 				}
 			}
@@ -155,10 +159,54 @@ public class TestingPathFinding {
 		panel.setSize(800, 800);
 		frame.add(panel);
 		frame.setVisible(true);
+		KeyListener kListener = new KeyListener(){
+			@Override
+			public void keyTyped(KeyEvent e) {
+				// TODO Auto-generated method stub
+			}
+			@Override
+			public void keyPressed(KeyEvent e) {
+				int key = e.getKeyCode();
+				if(key == KeyEvent.VK_ENTER){
+					pc.path = pFinder.iterShortestPath();
+					panel.repaint();
+				}
+				if(key == KeyEvent.VK_F){
+					pc.path = pFinder.shortestPath(start, end, world);
+					panel.repaint();
+				}
+				if(key == KeyEvent.VK_SPACE){
+					world.rectangles.clear();
+					for(int i = 0; i < 100; i++){
+						BodyWrapperTestClass body = new BodyWrapperTestClass();
+						body.r = new Rectangle2D.Double(random.nextDouble()*90, -50.0 + random.nextDouble()*90, random.nextDouble()*10, random.nextDouble()*10);
+						if(body.r.contains(start.x, start.y) || body.r.contains(end.x, end.y)){
+							i -= 1;
+							continue;
+						}
+						world.rectangles.add(body);
+					}
+					panel.repaint();
+				}
+				System.out.println("key pressed");
+			}
+			@Override
+			public void keyReleased(KeyEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+		};
+		frame.addKeyListener(kListener);
 	
 		while(true);	//	execute until window closed
 	}
 	
+	private class PathCarrier {
+		Path path;
+		PathCarrier(Path path){
+			this.path = path;
+		}
+	}
 	
 
 }

@@ -17,6 +17,14 @@ public class TitusPathFinder implements PathFinder{
 		PathTree tree = new PathTree(start, end, world);
 		return tree.shortestPath();
 	}
+	
+	PathTree tree;
+	public void initIterPath(Vec2 start, Vec2 end, WorldWrapper world){
+		tree = new PathTree(start, end, world);
+	}
+	public Path iterShortestPath(){
+		return tree.iterShortestPath();
+	}
 
 	/**
 	 * Not a traditional tree but helps to think of the way the paths branch as one.
@@ -30,8 +38,8 @@ public class TitusPathFinder implements PathFinder{
 			DEFAULT_MAX_VISITS = 2
 		;
 		public static final double 
-			DEFAULT_ANGULAR_GRAIN = Math.PI/36,
-			DEFAULT_MOVEMENT_GRAIN = 1.0/45.0
+			DEFAULT_ANGULAR_GRAIN = Math.PI/36.7,
+			DEFAULT_MOVEMENT_GRAIN = 1.0/45.7
 		;
 		
 		private ArrayList<PathBranch> branchQueue = new ArrayList<PathBranch>();
@@ -72,6 +80,9 @@ public class TitusPathFinder implements PathFinder{
 			this.maxVisits = maxVisits;
 			this.angularGrain = angularGrain;
 			this.movementGrain = movementGrain;
+			this.start = start;
+			this.end = end;
+			this.world = world;
 		}
 		
 		/**
@@ -100,6 +111,31 @@ public class TitusPathFinder implements PathFinder{
 					branchQueue.remove(0);
 				}
 			}
+			return new Path(current.locations);
+		}
+		
+		
+		boolean finished = true;
+		/**
+		 * Runs one iteration of the algorithm on the next path branch in the queue
+		 * @return the {@link Path} so far of the {@link PathBranch}
+		 */
+		public Path iterShortestPath(){
+			if(branchQueue.isEmpty() && finished){
+				ArrayList<Vec2> startingPath = new ArrayList<Vec2>();
+				startingPath.add(start);
+				startingPath.add(end);
+				PathBranch current = new PathBranch(this, startingPath, 0, new HashMap<BodyWrapper, Integer>());
+				branchQueue.add(current);
+				finished = false;
+			}
+			else if (branchQueue.isEmpty()){
+				finished = true;
+				return null;
+			}
+			PathBranch current = branchQueue.get(0);
+			branchQueue.remove(0);
+			current.branchShortestPath();
 			return new Path(current.locations);
 		}
 		
@@ -207,170 +243,160 @@ public class TitusPathFinder implements PathFinder{
 					 * 
 					 * Get the current location and next locations from the list
 					 */
-					
 					Vec2 current = locations.get(currentLocation);
 					Vec2 next = locations.get(currentLocation + 1);
 					Vec2 clockwise = next.copy();
 					Vec2 counter = next.copy();
 					
-					/*
-					 * Rotate step
-					 * 
-					 * Rotate the two end points clockwise and counter-clockwise around
-					 * the current point until raycasts between the current point and two end
-					 * points no longer cross the convex. angularGrain is used here
-					 * for the amount of rotation between iterations
-					 */
-					while(tree.world.raycast(current, clockwise, firstBody)){
-						/*
-						 * Rotate the clockwise point around the current point by angularGrain.
-						 * If the raycast between the current point and clockwise point no longer
-						 * hits the convex from earlier, rotating is finished
-						 */
-						clockwise.rotate(-tree.angularGrain, current);
-					}
-					while(tree.world.raycast(current, counter, firstBody)){
-						/*
-						 * Rotate the counter-clockwise point around the current point by angularGrain.
-						 * If the raycast between the current point and counter-clockwise point no longer
-						 * hits the convex from earlier, rotating is finished
-						 */
-						counter.rotate(tree.angularGrain, current);
-					}
-					
-					/*
-					 * End point sliding step
-					 * 
-					 * Move the clockwise and counter-clockwise points toward the current point by movementGrain
-					 * until the raycast from the new clockwise and counter-clockwise points to the end point
-					 * hits the convex, then take it a step back
-					 * This keeps a tight path around the convex
-					 */
-					
-					/*
-					 * Initialize a movement vector that when added to the clockwise point moves it by 
-					 * the distance from clockwise to the start point multiplied by movementGrain toward
-					 * the current point
-					 */
-					Vec2 moveClockwise = current.copy().sub(clockwise).mul(tree.movementGrain);
-					boolean done = false;
-					while(!done){
-						/*
-						 * Incrementally move the clockwise point toward the current point. Then, if a raycast
-						 * from the clockwise point to the end point crosses the convex, move back an iteration 
-						 * and the movement is finished
-						 */
-						clockwise.add(moveClockwise);
-						if(tree.world.raycast(clockwise, next, firstBody)){
-							done = true;
-							clockwise.sub(moveClockwise);
-						}
-					}
-					/*
-					 * Initialize a movement vector using the same logic above applied to the counter-clockwise 
-					 * point
-					 */
-					Vec2 moveCounter = current.copy().sub(counter).mul(tree.movementGrain);
-					done = false;
-					while(!done){
-						/*
-						 * Same steps as above but for the counter-clockwise point
-						 */
-						counter.add(moveCounter);
-						if(tree.world.raycast(counter, next, firstBody)){
-							done = true;
-							counter.sub(moveCounter);
-						}
-					}
-					/*
-					 * Now the points need to be moved back away from the convex while they intersect any other
-					 * convex in the world.
-					 */
-					/*
-					 * Move clockwise until it is out of any convexes
-					 */
-					done = false;
-					while(!done){
-						/*
-						 * If clockwise is inside any convexes, move it away. Otherwise the loop is finished
-						 */
-						if(tree.world.detect(clockwise)){
-							clockwise.sub(moveClockwise);
-						} else {
-							done = true;
-						}
-					}
-					/*
-					 * Move counter until it is out of any convexes
-					 */
-					done = false;
-					while(!done){
-						/*
-						 * If counter is inside any convexes, move it away. Otherwise the loop is finished
-						 */
-						if(tree.world.detect(counter)){
-							counter.sub(moveCounter);
-						} else {
-							done = true;
-						}
-					}
-					
-					
-					
-					/*
-					 * Branch step
-					 * 
-					 * At this step both the clockwise point and counter-clockwise points should not be inside
-					 * any convexes, and the line from both clockwise or counter-clockwise to the end point and
-					 * from the current point to the clockwise and counter-clockwise points should not be obstructed 
-					 * by the original convex. Now we must create new branches from those two points to the end point
-					 * 
-					 * Another outcome is that the line from start to either of the new points may be blocked
-					 * by some other convex now. If this is the case, the new branches will need to repeat these steps
-					 * at the current location
-					 * 
-					 * Create two new paths with the added respective locations of the clockwise point and
-					 * counter-clockwise point. If there is no object obstructing this part of the path,
-					 * increment the current location for the next iteration of the paths
-					 */
-					ArrayList<Vec2> clockwiseLocations = new ArrayList<Vec2>();
-					ArrayList<Vec2> counterLocations = new ArrayList<Vec2>();
-					
-					/*
-					 * Copy the locations of this path into the two new paths and insert the new clockwise and 
-					 * counter-clockwise point locations into their positions
-					 */
-					clockwiseLocations.addAll(locations);
-					clockwiseLocations.add(currentLocation + 1, clockwise);
-					counterLocations.addAll(locations);
-					counterLocations.add(currentLocation + 1, counter);
-					
-					/*
-					 * If there is still a convex intersecting the line formed by this location and the next,
-					 * keep the current location the same so the branch can attempt to get around it in the
-					 * next iteration. Otherwise move onto the next location
-					 */
-					int clockwiseCurrent = currentLocation, counterCurrent = currentLocation;
-					if(tree.world.raycast(current, clockwise).isEmpty()){
-						clockwiseCurrent += 1;
-					}
-					if(tree.world.raycast(current, counter).isEmpty()){
-						counterCurrent += 1;
-					}
-					
-					/*
-					 * Create the new path branches and queue them in the tree
-					 */
-					PathBranch clockwisePath = new PathBranch(tree, clockwiseLocations, clockwiseCurrent, visitedBodies);
-					PathBranch counterPath = new PathBranch(tree, counterLocations, counterCurrent, visitedBodies);
-					tree.queueForBranching(clockwisePath);
-					tree.queueForBranching(counterPath);
+					rotateStep(current, clockwise, counter, firstBody);
+					slidingStep(current, clockwise, counter, next, firstBody);
+					branchStep(current, clockwise, counter);
 					
 					/*
 					 * Didn't finish finding the path on this branch so return false
 					 */
 					return false;
 				}
+			}
+			
+			
+			/*
+			 * Rotate step
+			 * 
+			 * Rotate the two end points clockwise and counter-clockwise around
+			 * the current point until raycasts between the current point and two end
+			 * points no longer cross the convex. angularGrain is used here
+			 * for the amount of rotation between iterations
+			 */
+			private void rotateStep(Vec2 current, Vec2 clockwise, Vec2 counter, BodyWrapper firstBody){
+				
+				while(tree.world.raycast(current, clockwise, firstBody)){
+					/*
+					 * Rotate the clockwise point around the current point by angularGrain.
+					 * If the raycast between the current point and clockwise point no longer
+					 * hits the convex from earlier, rotating is finished
+					 */
+					clockwise.rotate(-tree.angularGrain, current);
+				}
+				while(tree.world.raycast(current, counter, firstBody)){
+					/*
+					 * Rotate the counter-clockwise point around the current point by angularGrain.
+					 * If the raycast between the current point and counter-clockwise point no longer
+					 * hits the convex from earlier, rotating is finished
+					 */
+					counter.rotate(tree.angularGrain, current);
+				}
+			}
+			
+			/*
+			 * End point sliding step
+			 * 
+			 * Move the clockwise and counter-clockwise points toward the current point by movementGrain
+			 * until the raycast from the new clockwise and counter-clockwise points to the end point
+			 * hits the convex, then take it a step back. This keeps a tight path around the convex
+			 */
+			private void slidingStep(Vec2 current, Vec2 clockwise, Vec2 counter, Vec2 next, BodyWrapper firstBody){
+				Vec2 moveClockwise = current.copy().sub(clockwise).mul(tree.movementGrain);
+				Vec2 moveCounter = current.copy().sub(counter).mul(tree.movementGrain);
+				slideTowardFirstConvex(current, clockwise, moveClockwise, counter, moveCounter, next, firstBody);
+				slideOutOfOtherConvexes(clockwise, moveClockwise, counter, moveCounter);
+			}
+			
+			/*
+			 * Slides the clockwise and counter-clockwise (middle) points toward the current location
+			 * until the segment from the middle points to the next point intersect the convex
+			 * being worked around, then moves them back one step.
+			 */
+			private void slideTowardFirstConvex(Vec2 current, Vec2 clockwise, Vec2 moveClockwise, 
+					Vec2 counter, Vec2 moveCounter, Vec2 next, BodyWrapper firstBody){
+				/*
+				 * While the convex is not intersecting the segment from the middle point to the next
+				 * point, move the middle point toward the current point. Then move it back one step
+				 * so it is not intersecting the convex but is still close
+				 */
+				while(!tree.world.raycast(clockwise, next, firstBody)){
+					clockwise.add(moveClockwise);
+				}
+				clockwise.sub(moveClockwise);
+				
+				/*
+				 * Same process for the counter point as the clockwise point
+				 */
+				while(!tree.world.raycast(counter, next, firstBody)){
+					counter.add(moveCounter);
+				}	
+				counter.sub(moveCounter);
+			}
+			
+			/*
+			 * Slides the middle points away from the current location until the middle points are
+			 * not inside any convexes. If sliding toward the current convex put them inside any
+			 * other convexes, or the rotation step before that put the point inside any convex
+			 * this will get the points out.
+			 */
+			private void slideOutOfOtherConvexes(Vec2 clockwise, Vec2 moveClockwise, Vec2 counter, Vec2 moveCounter){
+				/*
+				 * Move clockwise until it is out of any convexes
+				 */
+				while(tree.world.detect(clockwise)){
+					clockwise.sub(moveClockwise);
+				}
+				/*
+				 * Move counter until it is out of any convexes
+				 */
+				while(tree.world.detect(counter)){
+					counter.sub(moveCounter);
+				}
+			}
+			
+			/*
+			 * Branch step
+			 * 
+			 * At this step both the clockwise point and counter-clockwise points should not be inside
+			 * any convexes, and the line from both clockwise or counter-clockwise to the end point and
+			 * from the current point to the clockwise and counter-clockwise points should not be obstructed 
+			 * by the original convex. Now we must create new branches from those two points to the end point
+			 * 
+			 * Another outcome is that the line from start to either of the new points may be blocked
+			 * by some other convex now. If this is the case, the new branches will need to repeat these steps
+			 * at the current location
+			 * 
+			 * Create two new paths with the added respective locations of the clockwise point and
+			 * counter-clockwise point. If there is no object obstructing this part of the path,
+			 * increment the current location for the next iteration of the paths
+			 */
+			private void branchStep(Vec2 current, Vec2 clockwise, Vec2 counter){
+				/*
+				 * Copy the locations of this path into two new paths and insert the new clockwise and 
+				 * counter-clockwise point locations into their positions
+				 */
+				ArrayList<Vec2> clockwiseLocations = new ArrayList<Vec2>();
+				ArrayList<Vec2> counterLocations = new ArrayList<Vec2>();
+				clockwiseLocations.addAll(locations);
+				clockwiseLocations.add(currentLocation + 1, clockwise);
+				counterLocations.addAll(locations);
+				counterLocations.add(currentLocation + 1, counter);
+				
+				/*
+				 * If there is still a convex intersecting the line formed by this location and the next,
+				 * keep the current location the same so the branch can attempt to get around it in the
+				 * next iteration. Otherwise move onto the next location
+				 */
+				int clockwiseCurrent = currentLocation, counterCurrent = currentLocation;
+				if(tree.world.raycast(current, clockwise).isEmpty()){
+					clockwiseCurrent += 1;
+				}
+				if(tree.world.raycast(current, counter).isEmpty()){
+					counterCurrent += 1;
+				}
+				
+				/*
+				 * Create the new path branches and queue them in the tree
+				 */
+				PathBranch clockwisePath = new PathBranch(tree, clockwiseLocations, clockwiseCurrent, visitedBodies);
+				PathBranch counterPath = new PathBranch(tree, counterLocations, counterCurrent, visitedBodies);
+				tree.queueForBranching(clockwisePath);
+				tree.queueForBranching(counterPath);
 			}
 		}
 	}
